@@ -1,0 +1,108 @@
+---
+
+- name: Getting easy-rsa
+  git:
+    clone: yes
+    dest: "{{ easy_rsa_path }}"
+    repo: "https://github.com/OpenVPN/easy-rsa.git"
+    update: no
+
+
+- name: Creating vars file
+  template: 
+    src: vars.j2
+    dest: "{{ easy_rsa_path }}/easyrsa3/vars"
+    owner: root 
+    group: root 
+    mode: 0644 
+
+
+- name: Init pki
+  shell: "./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars init-pki"
+  args:
+    creates: "{{ easy_rsa_path }}/easyrsa3/pki"
+    chdir: "{{ easy_rsa_path }}/easyrsa3/"
+    executable: /bin/bash
+
+
+- name: Init ca.crt
+  shell: "echo -en '\n\n\n\n\n\n\n'|./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars build-ca nopass"
+  args:
+    creates: "{{ easy_rsa_path }}/easyrsa3/pki/ca.crt"
+    chdir: "{{ easy_rsa_path }}/easyrsa3/"
+    executable: /bin/bash
+
+
+- name: Generate server req
+  shell: "echo -en '\n\n\n\n\n\n\n'|./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars gen-req {{ openvpn_fqdn }} nopass"
+  args:
+    creates: "{{ easy_rsa_path }}/easyrsa3/pki/reqs/{{ openvpn_fqdn }}.req"
+    chdir: "{{ easy_rsa_path }}/easyrsa3/"
+    executable: /bin/bash
+
+
+- name: Sign server req
+  shell: "echo -en 'yes\n'|./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars sign server {{ openvpn_fqdn }}"
+  args:
+    creates: "{{ easy_rsa_path }}/easyrsa3/pki/issued/{{ openvpn_fqdn }}.crt"
+    chdir: "{{ easy_rsa_path }}/easyrsa3/"
+    executable: /bin/bash
+
+
+# - name: Generate dh
+#   shell: "./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars gen-dh"
+#   args:
+#     creates: "{{ easy_rsa_path }}/easyrsa3/pki/dh{{openvpn_key_size}}.pem"
+#     chdir: "{{ easy_rsa_path }}/easyrsa3/"
+#     executable: /bin/bash
+
+
+- name: Generate tls-auth key
+  shell: "openvpn --genkey --secret {{openvpn_tls_auth_key}}"
+  args:
+    chdir: "{{openvpn_keydir}}"
+    creates: "{{openvpn_tls_auth_key}}"
+
+
+- name: Generate diffie hellman
+  shell: "openssl dhparam -out {{openvpn_keydir}}/dh{{openvpn_key_size}}.pem {{openvpn_key_size}}"
+  args:
+    chdir: "{{openvpn_keydir}}"
+    creates: "dh{{openvpn_key_size}}.pem"
+    executable: /bin/bash
+
+
+- stat: path="{{openvpn_keydir}}/ca.crt"
+  register: ca_crt
+
+- name: Copy ca.crt to "{{openvpn_keydir}}"
+  shell: "cp {{ easy_rsa_path }}/easyrsa3/pki/ca.crt {{openvpn_keydir}}"
+  when: not ca_crt.stat.exists 
+
+
+- stat: path="{{openvpn_keydir}}/{{ openvpn_fqdn }}.crt"
+  register: server_crt
+
+- name: Copy "{{ openvpn_fqdn }}.crt" to "{{openvpn_keydir}}"
+  shell: "cp {{ easy_rsa_path }}/easyrsa3/pki/issued/{{ openvpn_fqdn }}.crt {{openvpn_keydir}}"
+  when: not server_crt.stat.exists 
+
+
+- stat: path="{{openvpn_keydir}}/{{ openvpn_fqdn }}.key"
+  register: server_key
+
+- name: Copy "{{ openvpn_fqdn }}.key" to "{{openvpn_keydir}}"
+  shell: "cp {{ easy_rsa_path }}/easyrsa3/pki/private/{{ openvpn_fqdn }}.key {{openvpn_keydir}}"
+  when: not server_key.stat.exists 
+
+
+# - stat: path="{{openvpn_keydir}}/dh{{openvpn_key_size}}.pem"
+#   register: dh_pem
+
+# - name: Copy "{{ openvpn_fqdn }}.key" to "{{openvpn_keydir}}"
+#   shell: "cp {{ easy_rsa_path }}/easyrsa3/pki/private/{{ openvpn_fqdn }}.key {{openvpn_keydir}}"
+#   when: not server_key.stat.exists 
+
+
+# - name: Copy certs to /etc/openvpn
+#   shell: bash -c "mkdir /etc/openvpn/{ccd,cert} -p && cd /usr/share/openvpn/easy-rsa/easyrsa3/pki; cp ca.crt /etc/openvpn/cert/; cp ./private/$(hostname).key /etc/openvpn/cert/; cp ./issued/$(hostname).crt /etc/openvpn/cert/;cp dh.pem /etc/openvpn/cert/;"

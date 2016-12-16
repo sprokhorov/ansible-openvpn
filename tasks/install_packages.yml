@@ -1,0 +1,26 @@
+---
+
+- name: install required packages for OpenVPN
+  apt: name={{ item }}
+  when: ansible_os_family == 'Debian'
+  with_items: 
+    - openvpn
+    - udev
+    - openssl
+    - git
+
+
+- name: Install epel repository
+  when: ansible_os_family == 'RedHat'
+  yum:
+    name: epel-release
+
+
+- name: install required packages for OpenVPN
+  yum: name={{ item }}
+  when: ansible_os_family == 'RedHat'
+  with_items: 
+    - openvpn
+    - udev
+    - openssl
+    - git

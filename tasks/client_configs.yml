@@ -1,0 +1,60 @@
+---
+
+- name: Generate clients req
+  shell: "echo -en '\n\n\n\n\n\n\n'|./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars gen-req {{ item }} nopass"
+  args:
+    creates: "{{ easy_rsa_path }}/easyrsa3/pki/reqs/{{ item }}.req"
+    chdir: "{{ easy_rsa_path }}/easyrsa3/"
+    executable: /bin/bash
+  with_items: "{{ openvpn_users }}"
+
+
+- name: Sign clients req
+  shell: "echo -en 'yes\n'|./easyrsa --vars={{ easy_rsa_path }}/easyrsa3/vars sign client {{ item }}"
+  args:
+    creates: "{{ easy_rsa_path }}/easyrsa3/pki/issued/{{ item }}.crt"
+    chdir: "{{ easy_rsa_path }}/easyrsa3/"
+    executable: /bin/bash
+  with_items: "{{ openvpn_users }}"
+
+
+- name: Copy clints certs
+  shell: "cp {{ easy_rsa_path }}/easyrsa3/pki/{issued,private}/{{ item }}.* {{openvpn_client_certificates_dir}}"
+  args:
+    creates: "{{openvpn_client_certificates_dir}}/{{ item }}.crt"
+    executable: /bin/bash
+  with_items: "{{ openvpn_users }}"
+
+
+- name: register server ca key
+  command: cat {{ openvpn_ca_cert }}
+  register: vpn_ca_cert
+  changed_when: false
+
+
+- name: register tls-auth key
+  command: cat {{ openvpn_tls_auth_key }}
+  register: vpn_tls_key
+  changed_when: false
+
+
+- name: register client certs
+  shell: echo \<cert\> && 
+         cat {{openvpn_client_certificates_dir}}/{{ item }}.crt && 
+         echo \</cert\> && 
+         echo \<key\> && 
+         cat {{openvpn_client_certificates_dir}}/{{ item }}.key && 
+         echo \</key\>
+  register: vpn_client_certs
+  changed_when: false
+  with_items: "{{ openvpn_users }}"
+
+  
+- name: generate client config
+  template: 
+    src: "client.ovpn.j2" 
+    dest: "{{ openvpn_client_certificates_dir }}/{{ item.item }}-{{ openvpn_fqdn }}.ovpn" 
+    owner: root 
+    group: root
+    mode: 0400
+  with_items: "{{ vpn_client_certs.results }}"

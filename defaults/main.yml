@@ -1,0 +1,49 @@
+---
+
+openvpn_user: openvpn
+openvpn_group: openvpn
+openvpn_fqdn: "{{ ansible_fqdn }}"
+openvpn_configdir: /etc/openvpn
+openvpn_logdir: /var/log
+openvpn_logfile: "{{ openvpn_logdir }}/openvpn.log"
+
+openvpn_port: 443
+openvpn_proto: tcp
+openvpn_key_size: 2048
+
+openvpn_cipher: "BF-CBC"
+openvpn_max_clients: 100
+openvpn_management_port: 7065
+openvpn_push_redirect_gateway: False
+openvpn_duplicate_cn: True
+
+easy_rsa_path: "{{ openvpn_configdir|trim }}/easy-rsa"
+easy_rsa_req_country: "RU"
+easy_rsa_req_province: "Moscow"
+easy_rsa_req_city: "Moscow"
+easy_rsa_req_org: "example"
+easy_rsa_req_email: "admin@example.com"
+easy_rsa_req_ou: "IT"
+
+openvpn_keydir: "{{ openvpn_configdir|trim }}/keys"
+openvpn_client_certificates_dir: "{{ openvpn_configdir|trim }}/clients"
+openvpn_clientconfig_dir:  "{{ openvpn_configdir|trim }}/ccd"
+
+openvpn_tls_auth_key: "{{ openvpn_keydir }}/ta{{ openvpn_key_size }}.key"
+openvpn_ca_cert: "{{ openvpn_keydir }}/ca.crt"
+openvpn_server_cert: "{{ openvpn_keydir }}/{{ ansible_fqdn }}.crt"
+openvpn_server_key: "{{ openvpn_keydir }}/{{ ansible_fqdn }}.key"
+
+openvpn_server_full_pool: ""
+
+openvpn_ifconfig: "10.8.8.1 255.255.255.0"
+openvpn_push_route_gateway: "10.8.8.1"
+openvpn_ifconfig_pool: "10.8.8.2 10.8.8.199 255.255.255.0"
+
+openvpn_push_ns: []
+openvpn_push_domains: []
+openvpn_push_routes: []
+
+openvpn_users: []
+openvpn_revocation_list: []
+openvpn_server_certs: []
